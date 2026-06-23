@@ -1,34 +1,21 @@
 pipeline {
-    agent {
-        node {
-            customWorkspace '/var/lib/jenkins/workspace/tf_test'
-        }
-    }
+    agent any
 
     environment {
-        TF_DIR = "Infra-TF"
+        TF_ABS_DIR = "/var/lib/jenkins/workspace/tf_test/Infra-TF"
         TF_PLUGIN_TIMEOUT = "300"
     }
 
     stages {
-        stage('Checkout Code') {
-            steps {
-                echo 'Pulling code from GitHub...'
-                checkout scm
-            }
-        }
-
-        stage('Check Workspace and State') {
+        stage('Check Terraform State Path') {
             steps {
                 sh '''
-                echo "Current workspace:"
-                pwd
+                echo "Checking Terraform directory:"
+                ls -la ${TF_ABS_DIR}
 
-                echo "Terraform directory:"
-                ls -la ${TF_DIR}
-
-                echo "Checking Terraform state:"
-                ls -la ${TF_DIR}/terraform.tfstate || true
+                echo ""
+                echo "Checking Terraform state file:"
+                ls -la ${TF_ABS_DIR}/terraform.tfstate
                 '''
             }
         }
@@ -36,6 +23,7 @@ pipeline {
         stage('Check AWS Identity') {
             steps {
                 sh '''
+                echo "Checking AWS identity:"
                 aws sts get-caller-identity
                 '''
             }
@@ -43,7 +31,7 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                dir("${TF_DIR}") {
+                dir("${TF_ABS_DIR}") {
                     sh '''
                     terraform init
                     '''
@@ -53,7 +41,7 @@ pipeline {
 
         stage('Show Terraform State') {
             steps {
-                dir("${TF_DIR}") {
+                dir("${TF_ABS_DIR}") {
                     sh '''
                     terraform state list
                     '''
@@ -69,9 +57,19 @@ pipeline {
 
         stage('Terraform Destroy') {
             steps {
-                dir("${TF_DIR}") {
+                dir("${TF_ABS_DIR}") {
                     sh '''
                     terraform destroy -auto-approve
+                    '''
+                }
+            }
+        }
+
+        stage('Verify State After Destroy') {
+            steps {
+                dir("${TF_ABS_DIR}") {
+                    sh '''
+                    terraform state list || true
                     '''
                 }
             }
@@ -80,11 +78,11 @@ pipeline {
 
     post {
         success {
-            echo 'Terraform destroy completed successfully.'
+            echo 'Terraform destroy pipeline completed successfully.'
         }
 
         failure {
-            echo 'Terraform destroy failed. Check console output.'
+            echo 'Terraform destroy pipeline failed. Check console output.'
         }
     }
 }
