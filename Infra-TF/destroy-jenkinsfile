@@ -1,0 +1,90 @@
+pipeline {
+    agent {
+        node {
+            customWorkspace '/var/lib/jenkins/workspace/tf_test'
+        }
+    }
+
+    environment {
+        TF_DIR = "Infra-TF"
+        TF_PLUGIN_TIMEOUT = "300"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo 'Pulling code from GitHub...'
+                checkout scm
+            }
+        }
+
+        stage('Check Workspace and State') {
+            steps {
+                sh '''
+                echo "Current workspace:"
+                pwd
+
+                echo "Terraform directory:"
+                ls -la ${TF_DIR}
+
+                echo "Checking Terraform state:"
+                ls -la ${TF_DIR}/terraform.tfstate || true
+                '''
+            }
+        }
+
+        stage('Check AWS Identity') {
+            steps {
+                sh '''
+                aws sts get-caller-identity
+                '''
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform init
+                    '''
+                }
+            }
+        }
+
+        stage('Show Terraform State') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform state list
+                    '''
+                }
+            }
+        }
+
+        stage('Manual Destroy Approval') {
+            steps {
+                input message: 'Are you sure you want to destroy the Terraform-created AWS resources?'
+            }
+        }
+
+        stage('Terraform Destroy') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform destroy -auto-approve
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Terraform destroy completed successfully.'
+        }
+
+        failure {
+            echo 'Terraform destroy failed. Check console output.'
+        }
+    }
+}
