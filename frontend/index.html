@@ -3,108 +3,346 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Person Details</title>
+    <title>SVS Homies</title>
 
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Inter, Arial, Helvetica, sans-serif;
+        }
+
+        :root {
+            --bg-dark: #050816;
+            --card-bg: rgba(255, 255, 255, 0.08);
+            --card-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-muted: #a8b3cf;
+            --primary: #7c3aed;
+            --secondary: #06b6d4;
+            --accent: #f472b6;
+            --success: #34d399;
+            --danger: #fb7185;
         }
 
         body {
             min-height: 100vh;
             background:
-                radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 35%),
-                radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.35), transparent 35%),
+                radial-gradient(circle at 15% 10%, rgba(124, 58, 237, 0.35), transparent 30%),
+                radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.28), transparent 32%),
+                radial-gradient(circle at 50% 95%, rgba(244, 114, 182, 0.22), transparent 35%),
                 linear-gradient(135deg, #020617, #0f172a, #111827);
-            color: white;
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 100vh;
+            padding: 24px;
+            position: relative;
+        }
+
+        .glow {
+            position: fixed;
+            width: 420px;
+            height: 420px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.35;
+            z-index: -1;
+            animation: floatGlow 9s ease-in-out infinite alternate;
+        }
+
+        .glow-one {
+            top: 10%;
+            left: 5%;
+            background: #7c3aed;
+        }
+
+        .glow-two {
+            right: 5%;
+            bottom: 8%;
+            background: #06b6d4;
+            animation-delay: 2s;
+        }
+
+        @keyframes floatGlow {
+            from {
+                transform: translateY(0) scale(1);
+            }
+            to {
+                transform: translateY(-35px) scale(1.08);
+            }
+        }
+
+        .container {
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            margin-bottom: 40px;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--card-border);
+            border-radius: 22px;
+            backdrop-filter: blur(18px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 30px;
+            font-size: 18px;
+            font-weight: 900;
+            box-shadow: 0 15px 35px rgba(124, 58, 237, 0.35);
         }
 
-        .page-wrapper {
-            width: 100%;
-            max-width: 1000px;
+        .brand-text h3 {
+            font-size: 20px;
+            letter-spacing: 0.3px;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 35px;
+        .brand-text span {
+            font-size: 13px;
+            color: var(--text-muted);
         }
 
-        .badge {
-            display: inline-block;
-            padding: 8px 18px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            color: #93c5fd;
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            color: var(--text-muted);
             font-size: 14px;
-            margin-bottom: 18px;
+        }
+
+        .nav-links span {
+            cursor: default;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .hero-content {
+            padding: 28px 4px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 15px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.10);
+            border: 1px solid var(--card-border);
+            color: #bfdbfe;
+            font-size: 14px;
+            margin-bottom: 22px;
             backdrop-filter: blur(10px);
         }
 
+        .pulse {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 7px rgba(52, 211, 153, 0.12);
+        }
+
         h1 {
-            font-size: 46px;
-            margin-bottom: 12px;
-            background: linear-gradient(90deg, #38bdf8, #818cf8, #f472b6);
+            font-size: clamp(42px, 7vw, 76px);
+            line-height: 0.95;
+            letter-spacing: -2.5px;
+            margin-bottom: 20px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .subtitle {
-            color: #cbd5e1;
-            font-size: 17px;
-            line-height: 1.6;
+        .hero-text {
+            max-width: 650px;
+            color: var(--text-muted);
+            font-size: 18px;
+            line-height: 1.7;
+            margin-bottom: 28px;
         }
 
-        .main-card {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 24px;
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(20px);
-            padding: 35px;
-        }
-
-        .button-container {
+        .stats {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            max-width: 610px;
         }
 
-        button {
-            border: none;
+        .stat-card {
+            padding: 18px;
+            border-radius: 18px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(14px);
+        }
+
+        .stat-card strong {
+            display: block;
+            font-size: 26px;
+            margin-bottom: 4px;
+        }
+
+        .stat-card span {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .hero-panel {
+            background: rgba(15, 23, 42, 0.70);
+            border: 1px solid var(--card-border);
+            border-radius: 28px;
+            padding: 26px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+        }
+
+        .panel-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .panel-top h2 {
+            font-size: 22px;
+        }
+
+        .status {
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.12);
+            color: #86efac;
+            font-size: 13px;
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+
+        .member-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .member-btn {
+            min-height: 110px;
+            border: 1px solid var(--card-border);
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04));
+            color: white;
+            border-radius: 20px;
+            padding: 18px;
             cursor: pointer;
-            padding: 18px 16px;
-            border-radius: 16px;
-            color: #ffffff;
-            font-size: 16px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            text-align: left;
             transition: all 0.25s ease;
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+            position: relative;
+            overflow: hidden;
         }
 
-        button:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 18px 35px rgba(124, 58, 237, 0.45);
-            background: linear-gradient(135deg, #0ea5e9, #9333ea);
+        .member-btn::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            right: -35px;
+            top: -35px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        button:active {
-            transform: scale(0.97);
+        .member-btn:hover {
+            transform: translateY(-5px);
+            border-color: rgba(56, 189, 248, 0.55);
+            box-shadow: 0 18px 45px rgba(6, 182, 212, 0.18);
+        }
+
+        .member-btn.active {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.70), rgba(6, 182, 212, 0.45));
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        .member-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #38bdf8, #a78bfa);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #020617;
+            font-weight: 900;
+            margin-bottom: 14px;
+        }
+
+        .member-btn h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .member-btn p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid var(--card-border);
+            border-radius: 28px;
+            padding: 28px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.30);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .section-title h2 {
+            font-size: 24px;
+        }
+
+        .section-title span {
+            color: var(--text-muted);
+            font-size: 14px;
         }
 
         #result {
-            min-height: 230px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+            min-height: 250px;
+            border-radius: 24px;
+            background:
+                linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
             border: 1px solid rgba(255, 255, 255, 0.12);
             padding: 28px;
             display: flex;
@@ -114,162 +352,343 @@
 
         .placeholder {
             text-align: center;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 17px;
+            line-height: 1.7;
+        }
+
+        .placeholder-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 18px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), rgba(6, 182, 212, 0.3));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
         }
 
         .loading {
             text-align: center;
             color: #38bdf8;
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
+        }
+
+        .loader {
+            width: 46px;
+            height: 46px;
+            border: 4px solid rgba(255, 255, 255, 0.14);
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            margin: 0 auto 18px;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .error {
             text-align: center;
-            color: #f87171;
+            color: var(--danger);
             font-size: 17px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
-        .profile-header {
+        .profile-card {
+            display: grid;
+            grid-template-columns: 0.7fr 1.3fr;
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .profile-main {
+            border-radius: 22px;
+            padding: 24px;
+            background:
+                linear-gradient(135deg, rgba(124, 58, 237, 0.32), rgba(6, 182, 212, 0.20));
+            border: 1px solid rgba(255, 255, 255, 0.16);
             display: flex;
+            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            gap: 18px;
-            margin-bottom: 25px;
+            text-align: center;
         }
 
-        .avatar {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #38bdf8, #a78bfa);
+        .big-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 30px;
+            background: linear-gradient(135deg, #38bdf8, #a78bfa, #f472b6);
             color: #020617;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
-            font-weight: 800;
-            box-shadow: 0 12px 35px rgba(56, 189, 248, 0.30);
+            font-size: 34px;
+            font-weight: 900;
+            margin-bottom: 18px;
+            box-shadow: 0 18px 45px rgba(56, 189, 248, 0.22);
         }
 
         .profile-name {
             font-size: 30px;
-            font-weight: 800;
-            margin-bottom: 6px;
+            font-weight: 900;
+            margin-bottom: 7px;
         }
 
         .profile-role {
-            color: #93c5fd;
-            font-size: 16px;
-            font-weight: 600;
+            color: #bfdbfe;
+            font-size: 15px;
+            font-weight: 700;
         }
 
         .details-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
+            gap: 14px;
         }
 
         .detail-box {
             background: rgba(255, 255, 255, 0.07);
             border: 1px solid rgba(255, 255, 255, 0.10);
-            border-radius: 14px;
-            padding: 16px;
+            border-radius: 18px;
+            padding: 18px;
+            min-height: 95px;
         }
 
         .label {
             display: block;
-            color: #94a3b8;
-            font-size: 13px;
-            margin-bottom: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-bottom: 9px;
             text-transform: uppercase;
-            letter-spacing: 0.6px;
+            letter-spacing: 0.7px;
         }
 
         .value {
             color: #ffffff;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             word-break: break-word;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: white;
+            background: rgba(255, 255, 255, 0.11);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
         }
 
         .footer {
             text-align: center;
-            margin-top: 24px;
+            margin-top: 28px;
             color: #64748b;
             font-size: 13px;
         }
 
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 34px;
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
             }
 
-            .button-container {
-                grid-template-columns: repeat(2, 1fr);
+            .profile-card {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .page {
+                padding: 14px;
+            }
+
+            .navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
+            }
+
+            .nav-links {
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .member-grid {
+                grid-template-columns: 1fr;
             }
 
             .details-grid {
                 grid-template-columns: 1fr;
             }
 
-            .main-card {
-                padding: 24px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .button-container {
-                grid-template-columns: 1fr;
-            }
-
-            h1 {
-                font-size: 30px;
+            .hero-panel,
+            .result-section {
+                padding: 20px;
             }
         }
     </style>
 </head>
 
 <body>
+    <div class="glow glow-one"></div>
+    <div class="glow glow-two"></div>
 
-    <div class="page-wrapper">
+    <div class="page">
+        <div class="container">
 
-        <div class="header">
-            <div class="badge">AWS 3-Tier Application</div>
-            <h1>Person Details Portal</h1>
-            <p class="subtitle">
-                Select a person to fetch live details from the Python backend and Amazon RDS database.
-            </p>
-        </div>
+            <nav class="navbar">
+                <div class="brand">
+                    <div class="logo">SVS</div>
+                    <div class="brand-text">
+                        <h3>SVS Homies</h3>
+                        <span>People. Vibes. Details.</span>
+                    </div>
+                </div>
 
-        <div class="main-card">
+                <div class="nav-links">
+                    <span>Home</span>
+                    <span>Members</span>
+                    <span>Directory</span>
+                </div>
+            </nav>
 
-            <div class="button-container">
-                <button onclick="fetchPerson('Ziyad')">Ziyad</button>
-                <button onclick="fetchPerson('Sajith')">Sajith</button>
-                <button onclick="fetchPerson('Malcky')">Malcky</button>
-                <button onclick="fetchPerson('Vishnu')">Vishnu</button>
+            <section class="hero">
+                <div class="hero-content">
+                    <div class="pill">
+                        <span class="pulse"></span>
+                        Homies directory is live
+                    </div>
+
+                    <h1>
+                        Meet the <span class="gradient-text">SVS Homies</span>
+                    </h1>
+
+                    <p class="hero-text">
+                        A simple and clean member directory. Select a name and view the profile details instantly.
+                    </p>
+
+                    <div class="stats">
+                        <div class="stat-card">
+                            <strong>04</strong>
+                            <span>Active members</span>
+                        </div>
+                        <div class="stat-card">
+                            <strong>24/7</strong>
+                            <span>Always connected</span>
+                        </div>
+                        <div class="stat-card">
+                            <strong>SVS</strong>
+                            <span>Homies network</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-panel">
+                    <div class="panel-top">
+                        <h2>Select a Homie</h2>
+                        <div class="status">Online</div>
+                    </div>
+
+                    <div class="member-grid">
+                        <button class="member-btn" onclick="fetchPerson('Ziyad', this)">
+                            <div class="member-avatar">ZI</div>
+                            <h3>Ziyad</h3>
+                            <p>View profile details</p>
+                        </button>
+
+                        <button class="member-btn" onclick="fetchPerson('Sajith', this)">
+                            <div class="member-avatar">SA</div>
+                            <h3>Sajith</h3>
+                            <p>View profile details</p>
+                        </button>
+
+                        <button class="member-btn" onclick="fetchPerson('Malcky', this)">
+                            <div class="member-avatar">MA</div>
+                            <h3>Malcky</h3>
+                            <p>View profile details</p>
+                        </button>
+
+                        <button class="member-btn" onclick="fetchPerson('Vishnu', this)">
+                            <div class="member-avatar">VI</div>
+                            <h3>Vishnu</h3>
+                            <p>View profile details</p>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="result-section">
+                <div class="section-title">
+                    <h2>Profile Details</h2>
+                    <span>Click a member to load details</span>
+                </div>
+
+                <div id="result">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">👥</div>
+                        Select any SVS Homie above to view the profile.
+                    </div>
+                </div>
+            </section>
+
+            <div class="footer">
+                © 2026 SVS Homies. Built for the crew.
             </div>
 
-            <div id="result">
-                <p class="placeholder">Click a name to fetch details from RDS.</p>
-            </div>
-
         </div>
-
-        <div class="footer">
-            Frontend: Nginx EC2 | Backend: Python Flask | Database: Amazon RDS MySQL
-        </div>
-
     </div>
 
     <script>
-        function fetchPerson(name) {
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function setActiveButton(buttonElement) {
+            const buttons = document.querySelectorAll(".member-btn");
+            buttons.forEach(button => button.classList.remove("active"));
+
+            if (buttonElement) {
+                buttonElement.classList.add("active");
+            }
+        }
+
+        function copyEmail(email) {
+            navigator.clipboard.writeText(email)
+                .then(() => alert("Email copied: " + email))
+                .catch(() => alert("Unable to copy email"));
+        }
+
+        function fetchPerson(name, buttonElement) {
             const resultBox = document.getElementById("result");
 
+            setActiveButton(buttonElement);
+
             resultBox.innerHTML = `
-                <p class="loading">Fetching details for ${name} from RDS...</p>
+                <div>
+                    <div class="loader"></div>
+                    <p class="loading">Loading ${escapeHtml(name)}'s profile...</p>
+                </div>
             `;
 
             fetch(`/api/person/${encodeURIComponent(name)}`)
@@ -277,51 +696,62 @@
                 .then(result => {
                     if (result.status === "error") {
                         resultBox.innerHTML =
-                            `<p class="error"><b>Error:</b> ${result.message}</p>`;
+                            `<p class="error"><b>Error:</b> ${escapeHtml(result.message)}</p>`;
                         return;
                     }
 
                     const person = result.data;
-                    const initials = person.name.substring(0, 2).toUpperCase();
+
+                    if (!person) {
+                        resultBox.innerHTML =
+                            `<p class="error"><b>No details found.</b></p>`;
+                        return;
+                    }
+
+                    const safeName = escapeHtml(person.name);
+                    const safeDesignation = escapeHtml(person.designation);
+                    const safeEmail = escapeHtml(person.email);
+                    const safeLocation = escapeHtml(person.location);
+                    const initials = safeName.substring(0, 2).toUpperCase();
 
                     resultBox.innerHTML = `
-                        <div class="profile-header">
-                            <div class="avatar">${initials}</div>
-                            <div>
-                                <div class="profile-name">${person.name}</div>
-                                <div class="profile-role">${person.designation}</div>
-                            </div>
-                        </div>
-
-                        <div class="details-grid">
-                            <div class="detail-box">
-                                <span class="label">Name</span>
-                                <div class="value">${person.name}</div>
+                        <div class="profile-card">
+                            <div class="profile-main">
+                                <div class="big-avatar">${initials}</div>
+                                <div class="profile-name">${safeName}</div>
+                                <div class="profile-role">${safeDesignation}</div>
                             </div>
 
-                            <div class="detail-box">
-                                <span class="label">Designation</span>
-                                <div class="value">${person.designation}</div>
-                            </div>
+                            <div class="details-grid">
+                                <div class="detail-box">
+                                    <span class="label">Name</span>
+                                    <div class="value">${safeName}</div>
+                                </div>
 
-                            <div class="detail-box">
-                                <span class="label">Email</span>
-                                <div class="value">${person.email}</div>
-                            </div>
+                                <div class="detail-box">
+                                    <span class="label">Designation</span>
+                                    <div class="value">${safeDesignation}</div>
+                                </div>
 
-                            <div class="detail-box">
-                                <span class="label">Location</span>
-                                <div class="value">${person.location}</div>
+                                <div class="detail-box">
+                                    <span class="label">Email</span>
+                                    <div class="value">${safeEmail}</div>
+                                    <button class="copy-btn" onclick="copyEmail('${safeEmail}')">Copy Email</button>
+                                </div>
+
+                                <div class="detail-box">
+                                    <span class="label">Location</span>
+                                    <div class="value">${safeLocation}</div>
+                                </div>
                             </div>
                         </div>
                     `;
                 })
                 .catch(error => {
                     resultBox.innerHTML =
-                        `<p class="error"><b>Request failed:</b> ${error}</p>`;
+                        `<p class="error"><b>Request failed:</b> ${escapeHtml(error)}</p>`;
                 });
         }
     </script>
-
 </body>
 </html>
