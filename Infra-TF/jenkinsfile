@@ -1,0 +1,125 @@
+pipeline {
+    agent any
+
+    environment {
+        TF_DIR = "Infra-TF"
+        TF_PLUGIN_TIMEOUT = "300"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo 'Pulling code from GitHub...'
+                checkout scm
+            }
+        }
+
+        stage('List Terraform Files') {
+            steps {
+                sh '''
+                echo "Current workspace:"
+                pwd
+
+                echo "Repository files:"
+                ls -la
+
+                echo "Terraform files:"
+                ls -la ${TF_DIR}
+                '''
+            }
+        }
+
+        stage('Check AWS Identity') {
+            steps {
+                sh '''
+                echo "Checking AWS identity from Jenkins EC2 IAM role..."
+                aws sts get-caller-identity
+                '''
+            }
+        }
+
+        stage('Check Terraform Version') {
+            steps {
+                sh '''
+                terraform version
+                '''
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform init
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Format') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform fmt
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform validate
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform plan -out=tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Manual Approval') {
+            steps {
+                input message: 'Terraform plan completed. Do you want to apply?'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform apply -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Output') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                    terraform output
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Terraform pipeline completed successfully.'
+        }
+
+        failure {
+            echo 'Terraform pipeline failed. Check console output.'
+        }
+    }
+}

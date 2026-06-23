@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Person Details</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f4f6f8;
+        }
+
+        h1 {
+            color: #222;
+        }
+
+        .button-container {
+            margin-bottom: 25px;
+        }
+
+        button {
+            padding: 12px 22px;
+            margin: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background: #2563eb;
+            color: white;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            width: 500px;
+            background: white;
+            min-height: 120px;
+            border-radius: 6px;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Select a Person</h1>
+
+    <div class="button-container">
+        <button onclick="fetchPerson('Ziyad')">Ziyad</button>
+        <button onclick="fetchPerson('Sajith')">Sajith</button>
+        <button onclick="fetchPerson('Malcky')">Malcky</button>
+        <button onclick="fetchPerson('Vishnu')">Vishnu</button>
+    </div>
+
+    <div id="result">
+        Click a name to fetch details from RDS.
+    </div>
+
+    <script>
+        function fetchPerson(name) {
+            document.getElementById("result").innerHTML = "Fetching details from RDS...";
+
+            fetch(`/api/person/${name}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === "error") {
+                        document.getElementById("result").innerHTML =
+                            `<p class="error"><b>Error:</b> ${result.message}</p>`;
+                        return;
+                    }
+
+                    const person = result.data;
+
+                    document.getElementById("result").innerHTML = `
+                        <h2>${person.name}</h2>
+                        <p><span class="label">Designation:</span> ${person.designation}</p>
+                        <p><span class="label">Email:</span> ${person.email}</p>
+                        <p><span class="label">Location:</span> ${person.location}</p>
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById("result").innerHTML =
+                        `<p class="error"><b>Request failed:</b> ${error}</p>`;
+                });
+        }
+    </script>
+
+</body>
+</html>
