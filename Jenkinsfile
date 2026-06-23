@@ -17,10 +17,7 @@ pipeline {
         REMOTE_BACKEND_DIR  = "/opt/testapp"
         REMOTE_NGINX_CONF   = "/etc/nginx/conf.d/testapp.conf"
 
-        // Backend service name
-        BACKEND_SERVICE = "gunicorn"
-
-        // Smoke test URL
+        // Smoke test URL through Nginx
         SMOKE_TEST_URL = "http://172.31.21.151/api/person/Sajith"
     }
 
@@ -32,7 +29,51 @@ pipeline {
             }
         }
 
-        stage('Validate Files') {
+        stage('Detect Changed Files') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: '''
+                        echo "Detecting changed files..."
+
+                        if [ -n "$GIT_PREVIOUS_SUCCESSFUL_COMMIT" ] && git cat-file -e "$GIT_PREVIOUS_SUCCESSFUL_COMMIT^{commit}" 2>/dev/null; then
+                            git diff --name-only $GIT_PREVIOUS_SUCCESSFUL_COMMIT $GIT_COMMIT
+                        elif git rev-parse HEAD~1 >/dev/null 2>&1; then
+                            git diff --name-only HEAD~1 HEAD
+                        else
+                            git ls-files
+                        fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:"
+                    echo changedFiles
+
+                    env.DEPLOY_FRONTEND = "false"
+                    env.DEPLOY_BACKEND  = "false"
+                    env.DEPLOY_NGINX    = "false"
+
+                    if (changedFiles.contains("frontend/")) {
+                        env.DEPLOY_FRONTEND = "true"
+                    }
+
+                    if (changedFiles.contains("backend/")) {
+                        env.DEPLOY_BACKEND = "true"
+                    }
+
+                    if (changedFiles.contains("nginx/")) {
+                        env.DEPLOY_NGINX = "true"
+                    }
+
+                    echo "DEPLOY_FRONTEND = ${env.DEPLOY_FRONTEND}"
+                    echo "DEPLOY_BACKEND  = ${env.DEPLOY_BACKEND}"
+                    echo "DEPLOY_NGINX    = ${env.DEPLOY_NGINX}"
+                }
+            }
+        }
+
+        stage('Validate Required Files') {
             steps {
                 sh '''
                 echo "Validating required files..."
@@ -50,9 +91,10 @@ pipeline {
         stage('List Deployment Files') {
             steps {
                 sh '''
-                echo "Current workspace:"
+                echo "Current Jenkins workspace:"
                 pwd
 
+                echo ""
                 echo "Deployment files:"
                 ls -l ${FRONTEND_FILE}
                 ls -l ${BACKEND_FILE}
@@ -63,6 +105,11 @@ pipeline {
         }
 
         stage('Backup Current Frontend') {
+            when {
+                expression {
+                    env.DEPLOY_FRONTEND == "true" || env.DEPLOY_NGINX == "true"
+                }
+            }
             steps {
                 sshagent(['nginx-ec2-key']) {
                     sh '''
@@ -79,29 +126,60 @@ pipeline {
             }
         }
 
-        stage('Deploy Frontend and Nginx Config') {
+        stage('Deploy Frontend') {
+            when {
+                expression {
+                    env.DEPLOY_FRONTEND == "true"
+                }
+            }
             steps {
                 sshagent(['nginx-ec2-key']) {
                     sh '''
-                    echo "Copying frontend and Nginx config to Nginx EC2..."
+                    echo "Deploying frontend to Nginx EC2..."
 
                     scp -o StrictHostKeyChecking=no ${FRONTEND_FILE} ec2-user@${NGINX_HOST}:/tmp/index.html
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "
+                        sudo cp /tmp/index.html ${REMOTE_FRONTEND_DIR}/index.html
+                    "
+
+                    echo "Frontend deployment completed."
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Nginx Config') {
+            when {
+                expression {
+                    env.DEPLOY_NGINX == "true"
+                }
+            }
+            steps {
+                sshagent(['nginx-ec2-key']) {
+                    sh '''
+                    echo "Deploying Nginx config..."
+
                     scp -o StrictHostKeyChecking=no ${NGINX_CONF_FILE} ec2-user@${NGINX_HOST}:/tmp/testapp.conf
 
                     ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "
-                        sudo cp /tmp/index.html ${REMOTE_FRONTEND_DIR}/index.html &&
                         sudo cp /tmp/testapp.conf ${REMOTE_NGINX_CONF} &&
                         sudo nginx -t &&
                         sudo systemctl reload nginx
                     "
 
-                    echo "Frontend and Nginx config deployment completed."
+                    echo "Nginx config deployment completed."
                     '''
                 }
             }
         }
 
         stage('Backup Current Backend') {
+            when {
+                expression {
+                    env.DEPLOY_BACKEND == "true"
+                }
+            }
             steps {
                 sshagent(['python-ec2-key']) {
                     sh '''
@@ -119,10 +197,15 @@ pipeline {
         }
 
         stage('Deploy Backend') {
+            when {
+                expression {
+                    env.DEPLOY_BACKEND == "true"
+                }
+            }
             steps {
                 sshagent(['python-ec2-key']) {
                     sh '''
-                    echo "Copying backend files to Python EC2..."
+                    echo "Deploying backend to Python EC2..."
 
                     ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
                         sudo mkdir -p ${REMOTE_BACKEND_DIR}
@@ -134,8 +217,9 @@ pipeline {
                     ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
                         sudo cp /tmp/app.py ${REMOTE_BACKEND_DIR}/app.py &&
                         sudo cp /tmp/requirements.txt ${REMOTE_BACKEND_DIR}/requirements.txt &&
+                        sudo chown -R ec2-user:ec2-user ${REMOTE_BACKEND_DIR} &&
                         cd ${REMOTE_BACKEND_DIR} &&
-                        sudo python3 -m pip install -r requirements.txt
+                        python3 -m pip install -r requirements.txt --user
                     "
 
                     echo "Backend deployment completed."
@@ -144,25 +228,61 @@ pipeline {
             }
         }
 
-        stage('Restart Backend Service') {
+        stage('Restart Backend Python App') {
+            when {
+                expression {
+                    env.DEPLOY_BACKEND == "true"
+                }
+            }
             steps {
                 sshagent(['python-ec2-key']) {
                     sh '''
-                    echo "Restarting backend service..."
+                    echo "Restarting backend Python app..."
 
                     ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
-                        sudo systemctl restart ${BACKEND_SERVICE} &&
-                        sudo systemctl status ${BACKEND_SERVICE} --no-pager
+                        echo 'Stopping existing Python backend process...'
+
+                        pkill -f 'python3 app.py' || true
+                        pkill -f '/opt/testapp/app.py' || true
+
+                        echo 'Starting Python backend...'
+
+                        cd ${REMOTE_BACKEND_DIR}
+                        nohup python3 app.py > app.log 2>&1 &
+
+                        sleep 5
+
+                        echo 'Running process:'
+                        ps -ef | grep '[p]ython3 app.py'
+
+                        echo ''
+                        echo 'Listening port check:'
+                        ss -ltnp | grep 8000 || true
+
+                        echo 'Backend Python app restarted.'
                     "
                     '''
                 }
             }
         }
 
+        stage('No Application Changes Detected') {
+            when {
+                expression {
+                    env.DEPLOY_FRONTEND == "false" &&
+                    env.DEPLOY_BACKEND == "false" &&
+                    env.DEPLOY_NGINX == "false"
+                }
+            }
+            steps {
+                echo 'No frontend, backend, or nginx changes detected. Skipping deployment stages.'
+            }
+        }
+
         stage('Smoke Test') {
             steps {
                 sh '''
-                echo "Running smoke test..."
+                echo "Running smoke test through Nginx..."
                 curl -f ${SMOKE_TEST_URL}
                 echo ""
                 echo "Smoke test passed."
@@ -173,11 +293,11 @@ pipeline {
 
     post {
         success {
-            echo 'Application upgrade completed successfully.'
+            echo 'Application pipeline completed successfully.'
         }
 
         failure {
-            echo 'Application upgrade failed. Check Jenkins console output.'
+            echo 'Application pipeline failed. Check Jenkins console output.'
         }
     }
 }
