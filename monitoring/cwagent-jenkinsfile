@@ -42,19 +42,19 @@ pipeline {
 
                         echo ''
                         echo 'Checking /var/log/messages'
-                        ls -l /var/log/messages || true
+                        sudo ls -l /var/log/messages || true
 
                         echo ''
                         echo 'Checking /var/log/nginx'
-                        ls -ld /var/log/nginx || true
+                        sudo ls -ld /var/log/nginx || true
 
                         echo ''
                         echo 'Checking /var/log/nginx/access.log'
-                        ls -l /var/log/nginx/access.log || true
+                        sudo ls -l /var/log/nginx/access.log || true
 
                         echo ''
                         echo 'Checking /var/log/nginx/error.log'
-                        ls -l /var/log/nginx/error.log || true
+                        sudo ls -l /var/log/nginx/error.log || true
 
                         echo ''
                         echo 'Checking sudo access'
@@ -73,15 +73,15 @@ pipeline {
 
                         echo ''
                         echo 'Checking /var/log/messages'
-                        ls -l /var/log/messages || true
+                        sudo ls -l /var/log/messages || true
 
                         echo ''
                         echo 'Checking /opt/testapp'
-                        ls -ld /opt/testapp || true
+                        sudo ls -ld /opt/testapp || true
 
                         echo ''
                         echo 'Checking /opt/testapp/app.log'
-                        ls -l /opt/testapp/app.log || true
+                        sudo ls -l /opt/testapp/app.log || true
 
                         echo ''
                         echo 'Checking sudo access'
@@ -120,8 +120,8 @@ pipeline {
                         sudo touch /var/log/messages || true
 
                         echo 'Nginx log paths:'
-                        ls -l /var/log/messages || true
-                        ls -l /var/log/nginx
+                        sudo ls -l /var/log/messages || true
+                        sudo ls -l /var/log/nginx
                     "
                     '''
                 }
@@ -137,8 +137,8 @@ pipeline {
                         sudo chown -R ec2-user:ec2-user /opt/testapp
 
                         echo 'Python app log paths:'
-                        ls -l /var/log/messages || true
-                        ls -l /opt/testapp
+                        sudo ls -l /var/log/messages || true
+                        sudo ls -l /opt/testapp
                     "
                     '''
                 }
