@@ -1,0 +1,456 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = "ap-southeast-2"
+
+        NGINX_HOST  = "172.31.21.151"
+        PYTHON_HOST = "172.31.8.214"
+
+        CW_AGENT_RPM = "https://amazoncloudwatch-agent.s3.amazonaws.com/redhat/amd64/latest/amazon-cloudwatch-agent.rpm"
+    }
+
+    stages {
+
+        stage('Precheck Required Log Paths') {
+            steps {
+                echo 'Checking required log paths on Jenkins, Nginx EC2, and Python EC2...'
+
+                sh '''
+                echo "===== Jenkins Runner Path Precheck ====="
+
+                echo "Checking /var/log/messages"
+                ls -l /var/log/messages || true
+
+                echo "Checking /var/log/jenkins"
+                ls -ld /var/log/jenkins || true
+
+                echo "Checking /var/log/jenkins/jenkins.log"
+                ls -l /var/log/jenkins/jenkins.log || true
+
+                echo "Checking sudo access for Jenkins user"
+                sudo -n true
+                '''
+
+                sshagent(['nginx-ec2-key']) {
+                    sh '''
+                    echo "===== Nginx EC2 Path Precheck ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "
+                        echo 'Hostname:'
+                        hostname
+
+                        echo ''
+                        echo 'Checking /var/log/messages'
+                        ls -l /var/log/messages || true
+
+                        echo ''
+                        echo 'Checking /var/log/nginx'
+                        ls -ld /var/log/nginx || true
+
+                        echo ''
+                        echo 'Checking /var/log/nginx/access.log'
+                        ls -l /var/log/nginx/access.log || true
+
+                        echo ''
+                        echo 'Checking /var/log/nginx/error.log'
+                        ls -l /var/log/nginx/error.log || true
+
+                        echo ''
+                        echo 'Checking sudo access'
+                        sudo -n true
+                    "
+                    '''
+                }
+
+                sshagent(['python-ec2-key']) {
+                    sh '''
+                    echo "===== Python EC2 Path Precheck ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
+                        echo 'Hostname:'
+                        hostname
+
+                        echo ''
+                        echo 'Checking /var/log/messages'
+                        ls -l /var/log/messages || true
+
+                        echo ''
+                        echo 'Checking /opt/testapp'
+                        ls -ld /opt/testapp || true
+
+                        echo ''
+                        echo 'Checking /opt/testapp/app.log'
+                        ls -l /opt/testapp/app.log || true
+
+                        echo ''
+                        echo 'Checking sudo access'
+                        sudo -n true
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('Create Missing Log Paths') {
+            steps {
+                echo 'Creating missing log directories and files if required...'
+
+                sh '''
+                echo "===== Creating Jenkins Runner log paths ====="
+
+                sudo mkdir -p /var/log/jenkins
+                sudo touch /var/log/jenkins/jenkins.log
+                sudo touch /var/log/messages || true
+                sudo chown -R jenkins:jenkins /var/log/jenkins || true
+
+                echo "Jenkins log paths:"
+                ls -l /var/log/messages || true
+                ls -l /var/log/jenkins
+                '''
+
+                sshagent(['nginx-ec2-key']) {
+                    sh '''
+                    echo "===== Creating Nginx EC2 log paths ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "
+                        sudo mkdir -p /var/log/nginx
+                        sudo touch /var/log/nginx/access.log
+                        sudo touch /var/log/nginx/error.log
+                        sudo touch /var/log/messages || true
+
+                        echo 'Nginx log paths:'
+                        ls -l /var/log/messages || true
+                        ls -l /var/log/nginx
+                    "
+                    '''
+                }
+
+                sshagent(['python-ec2-key']) {
+                    sh '''
+                    echo "===== Creating Python EC2 log paths ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
+                        sudo mkdir -p /opt/testapp
+                        sudo touch /opt/testapp/app.log
+                        sudo touch /var/log/messages || true
+                        sudo chown -R ec2-user:ec2-user /opt/testapp
+
+                        echo 'Python app log paths:'
+                        ls -l /var/log/messages || true
+                        ls -l /opt/testapp
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('Install CloudWatch Agent - Jenkins Runner') {
+            steps {
+                sh '''
+                echo "===== Installing CloudWatch Agent on Jenkins Runner ====="
+
+                if command -v dnf >/dev/null 2>&1; then
+                    sudo dnf install -y curl
+                else
+                    sudo yum install -y curl
+                fi
+
+                curl -fsSL -o /tmp/amazon-cloudwatch-agent.rpm ${CW_AGENT_RPM}
+
+                sudo rpm -Uvh /tmp/amazon-cloudwatch-agent.rpm || true
+
+                if [ ! -x /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then
+                    echo "CloudWatch Agent binary not found after install."
+                    exit 1
+                fi
+
+                sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json > /dev/null <<'CWCONFIG'
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root"
+  },
+  "metrics": {
+    "namespace": "SVS/EC2",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": [
+          "used_percent"
+        ],
+        "resources": [
+          "/"
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/svs/jenkins/system",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/jenkins/jenkins.log",
+            "log_group_name": "/svs/jenkins/app",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+CWCONFIG
+
+                sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+                    -a fetch-config \
+                    -m ec2 \
+                    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+                    -s
+                '''
+            }
+        }
+
+        stage('Install CloudWatch Agent - Nginx EC2') {
+            steps {
+                sshagent(['nginx-ec2-key']) {
+                    sh '''
+                    echo "===== Installing CloudWatch Agent on Nginx EC2 ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "CW_AGENT_RPM=${CW_AGENT_RPM} bash -s" <<'EOF'
+set -e
+
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y curl
+else
+    sudo yum install -y curl
+fi
+
+curl -fsSL -o /tmp/amazon-cloudwatch-agent.rpm ${CW_AGENT_RPM}
+
+sudo rpm -Uvh /tmp/amazon-cloudwatch-agent.rpm || true
+
+if [ ! -x /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then
+    echo "CloudWatch Agent binary not found after install."
+    exit 1
+fi
+
+sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json > /dev/null <<'CWCONFIG'
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root"
+  },
+  "metrics": {
+    "namespace": "SVS/EC2",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": [
+          "used_percent"
+        ],
+        "resources": [
+          "/"
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/svs/nginx/system",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "/svs/nginx/access",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/nginx/error.log",
+            "log_group_name": "/svs/nginx/error",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+CWCONFIG
+
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+    -s
+EOF
+                    '''
+                }
+            }
+        }
+
+        stage('Install CloudWatch Agent - Python EC2') {
+            steps {
+                sshagent(['python-ec2-key']) {
+                    sh '''
+                    echo "===== Installing CloudWatch Agent on Python EC2 ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "CW_AGENT_RPM=${CW_AGENT_RPM} bash -s" <<'EOF'
+set -e
+
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y curl
+else
+    sudo yum install -y curl
+fi
+
+curl -fsSL -o /tmp/amazon-cloudwatch-agent.rpm ${CW_AGENT_RPM}
+
+sudo rpm -Uvh /tmp/amazon-cloudwatch-agent.rpm || true
+
+if [ ! -x /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then
+    echo "CloudWatch Agent binary not found after install."
+    exit 1
+fi
+
+sudo tee /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json > /dev/null <<'CWCONFIG'
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root"
+  },
+  "metrics": {
+    "namespace": "SVS/EC2",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": [
+          "used_percent"
+        ],
+        "resources": [
+          "/"
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/svs/python/system",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/opt/testapp/app.log",
+            "log_group_name": "/svs/python/app",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+CWCONFIG
+
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config \
+    -m ec2 \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+    -s
+EOF
+                    '''
+                }
+            }
+        }
+
+        stage('Verify CloudWatch Agent Status') {
+            steps {
+                echo 'Verifying CloudWatch Agent status on all instances...'
+
+                sh '''
+                echo "===== Jenkins Runner Agent Status ====="
+
+                sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status || true
+
+                echo ""
+                echo "Recent CloudWatch Agent logs:"
+                sudo tail -n 30 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log || true
+                '''
+
+                sshagent(['nginx-ec2-key']) {
+                    sh '''
+                    echo "===== Nginx EC2 Agent Status ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${NGINX_HOST} "
+                        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status || true
+
+                        echo ''
+                        echo 'Recent CloudWatch Agent logs:'
+                        sudo tail -n 30 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log || true
+                    "
+                    '''
+                }
+
+                sshagent(['python-ec2-key']) {
+                    sh '''
+                    echo "===== Python EC2 Agent Status ====="
+
+                    ssh -o StrictHostKeyChecking=no ec2-user@${PYTHON_HOST} "
+                        sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status || true
+
+                        echo ''
+                        echo 'Recent CloudWatch Agent logs:'
+                        sudo tail -n 30 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log || true
+                    "
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CloudWatch Agent installation and verification completed successfully.'
+        }
+
+        failure {
+            echo 'CloudWatch Agent pipeline failed. Check the failed stage in Jenkins console output.'
+        }
+    }
+}
